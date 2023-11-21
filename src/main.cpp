@@ -69,10 +69,7 @@ void setup() {
     };
   pinMode(muxPin, OUTPUT);
   a2dp_sink.set_pin_config(my_pin_config);
-  a2dp_sink.set_mono_downmix(1);
-  a2dp_sink.set_on_connected2BT(connect_bt_callback);
-  a2dp_sink.set_on_disconnected2BT(disconnect_bt_callback);
-  a2dp_sink.start("RTECH VW Sapphire IX"); 
+  a2dp_sink.start("BT Radio"); 
 }
 
 //------loop------//
