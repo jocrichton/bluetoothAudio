@@ -1,86 +1,54 @@
 /*
-  VW Sapphire IX Antique Car Stereo Bluetooth Project
-  Used in conjunction with external DAC and Mux to allow for
-  Automatically switching between MONO AM and MONO Bluetooth
-  With Voice affirming connect/disconnect notifications  
-  https://www.youtube.com/c/jordanrubin6502
-  2021 Jordan Rubin.
+  Streaming Music from Bluetooth
+  
+  Copyright (C) 2020 Phil Schatzmann
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <Arduino.h>
-#include "audiodata.h"
+
+// ==> Example A2DP Receiver which uses I2S to an external DAC. The I2S output is managed via a separate Queue which might resolve popping sounds using the volume control on some IOS devices
+
 #include "BluetoothA2DPSink.h"
-#include "driver/i2s.h"
-const int muxPin = 18;
-const unsigned int bluetoothConn_raw_len = 43600;    //CONN
-const unsigned int bluetoothDisconn_raw_len = 55730; //DISCONN
-const i2s_port_t I2S_PORT = I2S_NUM_0;
-const unsigned char *ConnRawFile=bluetoothConn_raw;       //CONN
-const unsigned char *DisconnRawFile=bluetoothDisconn_raw; //DISCONN
-BluetoothA2DPSink a2dp_sink;
-esp_a2d_connection_state_t last_state;
-unsigned const char* AudioData;
-bool playmsg;
 
-//------playAudio------//
-void playAudio(bool type) {
-  AudioData = ConnRawFile;
-  int len = bluetoothConn_raw_len;
-  if (type == 0) {
-    AudioData = DisconnRawFile;
-    len = bluetoothDisconn_raw_len;
-  }
-  i2s_set_sample_rates(I2S_PORT, 11025);
-  uint32_t index = 0; 
-  size_t BytesWritten;
-  const unsigned char *Data;
-  int rest;
-  int byteSize = 4;
-  digitalWrite(muxPin, HIGH);
-  playmsg = 1;
-  while (index < len) {
-    rest = len - index;
-    if (rest < 4){byteSize = rest;}
-    Data=AudioData+index;
-    i2s_write(I2S_PORT,Data,byteSize,&BytesWritten,portMAX_DELAY); 
-    index+=4;
-  }
-  playmsg = 0;
-  i2s_set_sample_rates(I2S_PORT, 44100);
-}
-//------connect_bt_callback------//
-void connect_bt_callback() {
-  playAudio(1);
-}
-
-//------disconnect_bt_callback------//
-void disconnect_bt_callback() {
-  playAudio(0);
-  //ESP.restart();
-}
-
-//------setup------//
-void setup() {
-  Serial.begin(115200);
-      i2s_pin_config_t my_pin_config = {
-        .bck_io_num = 26,
-        .ws_io_num = 25,
-        .data_out_num = 23,
-        .data_in_num = I2S_PIN_NO_CHANGE
+static const i2s_config_t i2s_config = {
+         .mode = (i2s_mode_t) (I2S_MODE_MASTER | I2S_MODE_TX),
+         .sample_rate = 44100,
+         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
+         .communication_format = (i2s_comm_format_t) (I2S_COMM_FORMAT_STAND_I2S),
+         .intr_alloc_flags = 0, // default interrupt priority
+         .dma_buf_count = 8,
+         .dma_buf_len = 64,
+         .use_apll = false,
+         .tx_desc_auto_clear = false // avoiding noise in case of data unavailability
     };
-  pinMode(muxPin, OUTPUT);
+
+BluetoothA2DPSink a2dp_sink;
+
+void setup() {
+   i2s_pin_config_t my_pin_config= {
+    .bck_io_num = 26,
+    .ws_io_num = 25,
+    .data_out_num = 23,
+    .data_in_num = 22
+     };
   a2dp_sink.set_pin_config(my_pin_config);
-  a2dp_sink.start("BT Radio"); 
+  a2dp_sink.set_i2s_config(i2s_config);
+  a2dp_sink.start("MyMusicQueued");
+      
+ 
+
 }
 
-//------loop------//
+
 void loop() {
-  esp_a2d_audio_state_t audiostate = a2dp_sink.get_audio_state();
-  Serial.println(audiostate);
-  if ((audiostate == 2)||(playmsg == 1)){
-    digitalWrite(muxPin, HIGH);
-  }
-  else {
-    digitalWrite(muxPin, LOW);
-  }
-  delay(500);
+  delay(1000); // do nothing
 }
